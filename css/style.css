@@ -1,0 +1,487 @@
+/* -------------------- GLOBAL -------------------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Roboto', Arial, sans-serif;
+  margin: 0;
+   margin-top: -40px;
+  background-color: #f5f5f5;
+  color: #333;
+  padding-top: 230px; /* header + nav + search */
+  scroll-behavior: smooth;
+}
+
+/* Small helper text */
+.empty-text {
+  text-align: center;
+  margin-top: 40px;
+  color: #777;
+  font-size: 15px;
+}
+
+/* LIVE ANIMATION — WITH CENTER DOT + GLOW */
+.live-anim {
+  position: relative;
+  color: red;
+  font-weight: 700;
+  padding-left: 8px; /* little spacing for dot */
+  animation: liveText 1.6s infinite ease-in-out;
+}
+
+/* Small red dot in center */
+.live-anim::after {
+  content: "";
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  background: red;
+  border-radius: 50%;
+  left: -2px;
+  top: 4px;
+  animation: dotPulse 1.2s infinite ease-in-out;
+}
+
+/* Big glow bubble */
+.live-anim::before {
+  content: "";
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  background: rgba(255, 0, 0, 0.35);
+  border-radius: 50%;
+  left: -10px;
+  top: -4px;
+  z-index: -1;
+  animation: pulseGlow 1.6s infinite ease-out;
+}
+
+.nav a.active::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  transform: translateX(-50%);
+  width: 70%;
+  height: 3px;
+  background: limegreen;
+  border-radius: 999px;
+}
+
+
+/* DOT PULSE */
+@keyframes dotPulse {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.8; }
+}
+
+/* BACKGROUND GLOW EXPANSION */
+@keyframes pulseGlow {
+  0% { transform: scale(0.5); opacity: 0.9; }
+  50% { transform: scale(1.0); opacity: 0.5; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+/* TEXT SOFT PULSE */
+@keyframes liveText {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+
+/* -------------------- HEADER -------------------- */
+.header {
+  background-color: #fff;
+  border-bottom: 1px solid #e0e0e0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.header-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 10px 12px;
+  text-align: center;
+}
+
+.header-title {
+  margin: 0;
+  color: #0c6b27;
+  font-weight: 700;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  font-size: 24px;
+}
+
+.header-title img.logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.header-title span {
+  color: red;
+}
+
+.header-subtitle {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: #444;
+}
+
+.total-pill {
+  display: inline-block;
+  min-width: 32px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #e6ffe9;
+  color: #0a6a2a;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* -------------------- NAV (from nav.html) -------------------- */
+.nav {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #000;
+  padding: 12px 0;
+  flex-wrap: wrap;
+  position: fixed;
+  top: 80px;          /* header ke bilkul neeche */
+  left: 0;
+  right: 0;
+  z-index: 999;
+  border-bottom: 3px solid limegreen;
+  box-shadow: 0 2px 4px rgba(0, 255, 0, 0.12);
+}
+
+.nav a {
+  color: white;
+  text-decoration: none;
+  padding: 8px 18px;
+  font-size: 15px;
+  font-weight: 500;
+  position: relative;
+  transition: color 0.25s ease, transform 0.2s ease;
+}
+
+.nav a:hover {
+  color: limegreen;
+  transform: translateY(-1px);
+}
+
+.nav a.active {
+  color: limegreen;
+  font-weight: 700;
+}
+
+/* Underline for active */
+.nav a.active::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  transform: translateX(-50%);
+  width: 70%;
+  height: 3px;
+  background: limegreen;
+  border-radius: 999px;
+}
+
+
+/* -------------------- SEARCH BAR -------------------- */
+.search-bar {
+  background-color: #fff;
+  padding: 10px 16px;
+  border-bottom: 1px solid #ddd;
+  display: flex;
+  justify-content: center;
+  position: fixed;
+  top: 140px;   /* nav ke bilkul neeche */
+  left: 0;
+  right: 0;
+  z-index: 998;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+.search-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 90%;
+  max-width: 780px;
+  gap: 10px;
+}
+
+.search-container input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background: #fafafa;
+}
+
+.search-container input:focus {
+  border-color: #0fa14a;
+  box-shadow: 0 0 0 2px rgba(15, 161, 74, 0.25);
+}
+
+.search-container select {
+  padding: 10px 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background-color: #fff;
+  font-size: 14px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  flex-shrink: 0;
+  width: 120px;
+}
+
+.search-container select:focus {
+  border-color: #0fa14a;
+  box-shadow: 0 0 0 2px rgba(15, 161, 74, 0.2);
+}
+
+/* -------------------- DEVICES WRAPPER -------------------- */
+.devices-wrapper {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* -------------------- DEVICES -------------------- */
+.devices {
+  width: 100%;
+  padding: 20px 16px 40px;
+}
+
+/* Card */
+.device-card {
+  display: flex;
+  align-items: stretch;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.device-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+
+/* Left side (phone image) */
+.device-left {
+  width: 70px;
+  background-image: url("../assets/image/android.png");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  flex-shrink: 0;
+  margin-right: 18px;
+}
+
+/* Device info */
+.device-info {
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.device-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.device-info h3 {
+  margin: 0;
+  color: #0a6a2a;
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+/* Android version badge */
+.badge {
+  background-color: #0fa14a;
+  color: white;
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 12px;
+  margin-left: 8px;
+}
+
+/* ID & SIM */
+.device-info p {
+  margin: 3px 0;
+  font-size: 14px;
+  word-break: break-word;
+}
+
+.device-id {
+  color: #555;
+}
+
+.sim-line {
+  color: #222;
+  font-weight: 500;
+}
+
+/* Status chip */
+.status-wrapper {
+  flex-shrink: 0;
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #bbb;
+  font-size: 12px;
+  font-weight: 500;
+  background-color: #fff;
+}
+
+.status-chip.status-online {
+  border-color: #24a148;
+  background-color: #e6ffe9;
+  color: #0b7a2d;
+}
+
+/* -------------------- RESPONSIVE -------------------- */
+@media (max-width: 900px) {
+  body {
+    padding-top: 225px;
+  }
+
+  .header-title {
+    font-size: 22px;
+  }
+}
+
+@media (max-width: 768px) {
+  body {
+    padding-top: 220px;
+  }
+
+  .header-title {
+    font-size: 20px;
+  }
+
+  .nav {
+    top: 76px;
+    padding: 10px 0;
+  }
+
+  .nav a {
+    font-size: 14px;
+    padding: 7px 14px;
+  }
+
+  .search-bar {
+    top: 132px;
+    padding: 8px 12px;
+  }
+
+  .search-container {
+    width: 95%;
+    gap: 8px;
+  }
+
+  .device-card {
+    padding: 12px;
+  }
+
+  .device-left {
+    width: 60px;
+    margin-right: 12px;
+  }
+
+  .device-title-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .status-wrapper {
+    margin-top: 4px;
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    padding-top: 215px;
+  }
+
+  .header-inner {
+    padding: 8px 10px;
+  }
+
+  .header-title {
+    font-size: 18px;
+  }
+
+  .header-title img.logo {
+    width: 28px;
+    height: 28px;
+  }
+
+  .nav {
+    top: 72px;
+    padding: 8px 0;
+  }
+
+  .nav a {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+
+  .search-bar {
+    top: 128px;
+    padding: 8px 10px;
+  }
+
+  .search-container input,
+  .search-container select {
+    font-size: 13px;
+    padding: 8px 10px;
+  }
+
+  .device-card {
+    flex-direction: row;
+  }
+
+  .device-info h3 {
+    font-size: 15px;
+  }
+
+  .status-chip {
+    font-size: 11px;
+    padding: 3px 8px;
+  }
+}

